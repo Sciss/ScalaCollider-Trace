@@ -17,10 +17,11 @@ package trace
 
 import java.util.Locale
 
-import de.sciss.{osc, synth}
-import de.sciss.synth.trace.TraceSynth.{Data, Link}
+import de.sciss.synth.message.HasCompletion
+import de.sciss.synth.trace.TraceSynth.{BundleBuilder, Data, Link}
 import de.sciss.synth.trace.ugen.Trace
 import de.sciss.synth.trace.{TracingUGenGraphBuilder => UGB}
+import de.sciss.{osc, synth}
 
 import scala.collection.breakOut
 import scala.collection.immutable.{IndexedSeq => Vec}
@@ -41,6 +42,34 @@ object TraceSynth {
     def nonEmpty: Boolean = !isEmpty
   }
 
+  final class BundleBuilder {
+    def prependSync (p: osc.Packet)                   : Unit = sync = p +: sync
+    def appendSync  (p: osc.Packet)                   : Unit = sync = sync :+ p
+
+    def prependAsync(p: osc.Packet with HasCompletion): Unit = async = p +: async
+    def appendAsync (p: osc.Packet with HasCompletion): Unit = async = async :+ p
+
+    var sync  = Vec.empty[osc.Packet]
+    var async = Vec.empty[osc.Packet with HasCompletion]
+
+    def result(): osc.Packet = {
+      val syncP = if (sync.size == 1) sync.head
+      else osc.Bundle.now(sync: _*)
+
+      if (async.isEmpty) syncP else {
+        val init :+ last = async
+        val syncU = last.completion.fold(syncP) { comp =>
+          syncP match {
+            case b: osc.Bundle => osc.Bundle.now(comp +: b.packets: _*)
+            case _ => osc.Bundle.now(comp, syncP)
+          }
+        }
+        val lastU = last.updateCompletion(Some(syncU))
+        if (init.isEmpty) lastU else osc.Bundle.now(init :+ lastU: _*)
+      }
+    }
+  }
+
   final case class Data(bus: Bus, numFrames: Int, traceMap: Map[String, Vec[Vec[Float]]]) {
     def rate: Rate = bus.rate
 
@@ -49,16 +78,12 @@ object TraceSynth {
       */
     def firstTrace: Vec[Vec[Float]] = traceMap.headOption.map(_._2).getOrElse(Vector.empty)
 
-//    def print(digits: Int = 4): Unit = println(mkString(digits = digits))
     def print(): Unit = println(mkString)
-
-//    def mkString: String = mkString(4)
-//    * @param digits the maximum number of digits (fractional part) for the data.
 
     /** Creates a string representation of the traces, formatted
       * as a table with alphabetically ordered labels.
       */
-    def mkString /* (digits: Int) */: String = {
+    def mkString: String = {
       val labels    = traceMap.keysIterator.toSeq.sorted
       val labelLen  = if (labels.isEmpty) 0 else labels                 .map(_.length).max
       val maxChans  = if (labels.isEmpty) 0 else traceMap.valuesIterator.map(_.length).max
@@ -103,7 +128,7 @@ object TraceSynth {
             }
             sb.append(": ")
             vec.iterator.zipWithIndex.foreach { case (x, i) =>
-              val s       = java.lang.String.format(Locale.US, "%13g", x.asInstanceOf[AnyRef])
+              val s       = java.lang.String.format(Locale.US, "%g", x.asInstanceOf[AnyRef])
               val dec0    = s.indexOf('.')
               val dec     = if (dec0 >= 0) dec0 else s.length
               val numPre  = 7 - dec
@@ -112,9 +137,11 @@ object TraceSynth {
                 sb.append(' ')
                 i += 1
               }
-              sb.append(s)
-              i += s.length
-              while (i < 13) {
+              val s1 = if (s.length + i <= 15) s else s.substring(0, 15 - i)
+              sb.append(s1)
+              i += s1.length
+              // assert(i <= 14, s"'$s'")
+              while (i < 15) {
                 sb.append(' ')
                 i += 1
               }
@@ -154,7 +181,16 @@ final case class TraceSynth(peer: Synth, controlLink: Link, audioLink: Link) {
     * @param numFrames  duration of the trace in sample frames. Alternative to `duration`.
     * @param numBlocks  duration of the trace in control blocks. Alternative to `duration` and `numFrames`.
     */
-  def traceFor(duration: Double = 0.0, numFrames: Int = 0, numBlocks: Int = 0): Future[List[Data]] = {
+  def traceFor(duration: Double = 0.0, numFrames: Int = 0, numBlocks: Int = 0,
+               bundle: BundleBuilder = new BundleBuilder): Future[List[Data]] = {
+    val res = traceForToBundle(duration = duration, numFrames = numFrames, numBlocks = numBlocks, bundle = bundle)
+    server ! bundle.result()
+    res
+  }
+
+  def traceForToBundle(duration: Double = 0.0, numFrames: Int = 0, numBlocks: Int = 0,
+                       doneAction: DoneAction = freeSelf,
+                       bundle: BundleBuilder = new BundleBuilder): Future[List[Data]] = {
     val s           = server
     val blockSize   = s.config.blockSize
     val numFrames1  = if (duration > 0) {
@@ -172,7 +208,6 @@ final case class TraceSynth(peer: Synth, controlLink: Link, audioLink: Link) {
     val numFramesOk = math.max(1, numFrames1)
     val numBlocksOk = (numFramesOk + blockSize - 1) / blockSize
 
-    var async   = List.empty[osc.Message]
     var futures = List.empty[Future[Data]]
 
     import s.clientConfig.executionContext
@@ -182,29 +217,34 @@ final case class TraceSynth(peer: Synth, controlLink: Link, audioLink: Link) {
       val rate        = link.rate
       val busCtlName  = Trace.controlName(rate)
       val bufCtlName  = "$trace_buf"
+      val doneCtlName = "$trace_done"
       val synthDef    = SynthDef(TraceGraphFunction.mkSynthDefName()) {
         import Ops.stringToControl
         import synth.ugen._
         val busIdx      = busCtlName.ir
         val sig         = In(rate, busIdx, numChannels = numChannels)
         val bufId       = bufCtlName.ir
-        RecordBuf(rate, in = sig, buf = bufId, loop = 0, doneAction = freeSelf)
+        val doneId      = doneCtlName.ir(freeSelf.id.toFloat)
+        RecordBuf(rate, in = sig, buf = bufId, loop = 0, doneAction = doneId)
       }
       val bufSize   = if (link.rate == control) numBlocksOk else numFramesOk
       val buf       = Buffer(s)
       val syn       = Synth (s)
-      val synArgs   = List[ControlSet](busCtlName -> link.bus.index, bufCtlName -> buf.id)
+      val synArgs   = List[ControlSet](busCtlName -> link.bus.index, bufCtlName -> buf.id, doneCtlName -> doneAction.id)
       val newMsg    = syn.newMsg(synthDef.name, args = synArgs, target = peer, addAction = addAfter)
-      val recvMsg   = synthDef.recvMsg(completion = osc.Bundle.now(newMsg, synthDef.freeMsg))
-      val allocMsg  = buf.allocMsg(numFrames = bufSize, numChannels = numChannels, completion = recvMsg)
+      bundle.appendSync(newMsg)
+      bundle.appendSync(synthDef.freeMsg)
+      val recvMsg   = synthDef.recvMsg // (completion = osc.Bundle.now(newMsg, synthDef.freeMsg))
+      val allocMsg  = buf.allocMsg(numFrames = bufSize, numChannels = numChannels) // , completion = recvMsg
+      bundle.appendAsync(allocMsg)
+      bundle.appendAsync(recvMsg)
       val p         = Promise[Data]()
 
-      async   ::= allocMsg
       futures ::= p.future
 
       syn.onEnd {
         import Ops._
-        val fut = buf.getData()
+        val fut  = buf.getData()
         val futI = fut.map { flat =>
           // val xs = flat.grouped(bufSize).toVector.transpose
           // is this faster than intermediate vectors and transpose?
@@ -220,16 +260,9 @@ final case class TraceSynth(peer: Synth, controlLink: Link, audioLink: Link) {
       }
     }
 
-    // osc messages and futures will be assembled in reverse order
-    mkData(audioLink  )
     mkData(controlLink)
+    mkData(audioLink  )
 
-    async match {
-      case single :: Nil => s ! single
-      case Nil =>
-      case multiple => s ! osc.Bundle.now(multiple: _*)
-    }
-
-    Future.sequence(futures)
+    Future.sequence(futures.reverse)
   }
 }

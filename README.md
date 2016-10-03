@@ -3,9 +3,10 @@
 [![Build Status](https://travis-ci.org/iem-projects/ScalaCollider-Trace.svg?branch=master)](https://travis-ci.org/iem-projects/ScalaCollider-Trace)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/at.iem/scalacollider-trace_2.11/badge.svg)](https://maven-badges.herokuapp.com/maven-central/at.iem/scalacollider-trace_2.11)
 
-A library for [ScalaCollider](https://github.com/Sciss/ScalaCollider) to aids in debugging synth graphs by providing abstractions
-that monitor the values of UGens graph.
-This project is (C)opyright 2016 by the Institute of Electronic Music and Acoustics (IEM), Graz. Written by Hanns Holger Rutz. This software is published under the GNU Lesser General Public License v2.1+.
+A library for [ScalaCollider](https://github.com/Sciss/ScalaCollider) to aids in debugging 
+synth graphs by providing abstractions that monitor the values of UGens graph.
+This project is (C)opyright 2016 by the Institute of Electronic Music and Acoustics (IEM), Graz. 
+Written by Hanns Holger Rutz. This software is published under the GNU Lesser General Public License v2.1+.
 
 ## linking
 
@@ -55,7 +56,6 @@ Server.run() { s =>
   import s.clientConfig.executionContext
   
   val x = tracePlay {
-    RandSeed.ir
     val n = WhiteNoise.ar
     Trace(n, "noise")
     Pan2.ar(n)
@@ -76,13 +76,43 @@ and one for audio-rate traces (if any of these rates are used). The
 `Trace` graph element automatically uses the rate of its input argument.
 
 The `print` method on `Data` is a convenience method for creating a
-nicely formatted text, a short cut for `println(mkString)`. The expected
+nicely formatted text, a short cut for `println(mkString)`. A possible
 output from the above example is:
 
     -------------------------
     audio-rate data: 8 frames
     -------------------------
     noise    :      -0.00180101     -0.266668      0.0157881      0.00469923     -0.880886     -0.242413      0.812972     -0.205941
+
+In order to start playing and tracing synchronously, one can use
+`traceGraph` to build the enhanced graph-function (`TraceGraphFunction`),
+and then use `traceFor` in a similar way:
+
+```scala
+val x = traceGraph {
+  RandSeed.ir
+  val n = WhiteNoise.ar
+  Trace(n, "noise")
+  Pan2.ar(n)
+}
+
+val fut = x.traceFor(numFrames = 8)
+fut.foreach { traces =>
+  traces.foreach(_.print())
+}
+```
+
+This variant frees the synth automatically after the trace has been
+recorded. The correct output here would be:
+
+    -------------------------
+    audio-rate data: 8 frames
+    -------------------------
+    noise    :      -0.0793402      0.608976     -0.491325      0.387161     -0.563370      0.307421      0.290958      0.928846
+
+The `traceFor` function also accepts a `bundle` argument of type
+`BundleBuilder`. This can be used to attach further synchronized
+debugging actions to the trace.
 
 Here is another example for control rate debugging:
 
@@ -91,7 +121,6 @@ val y = tracePlay {
   val tr    = "trig".tr
   val count = PulseCount.kr(tr)
   Trace(count, "count")
-  ()
 }
 
 y.set("trig" -> 1)

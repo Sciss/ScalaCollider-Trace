@@ -15,12 +15,10 @@
 package de.sciss.synth
 package trace
 
-import de.sciss.osc
-import de.sciss.osc.Bundle
-import de.sciss.synth.trace.TraceSynth.Link
+import de.sciss.synth.trace.TraceSynth.{BundleBuilder, Data, Link}
 import de.sciss.synth.trace.ugen.Trace
 
-import scala.collection.immutable.{IndexedSeq => Vec}
+import scala.concurrent.Future
 
 // XXX TODO --- ugly, we have to duplicate all of `GraphFunction`
 object TraceGraphFunction {
@@ -39,10 +37,36 @@ object TraceGraphFunction {
 final class TraceGraphFunction[A](val peer: () => A)(implicit val result: GraphFunction.Result[A]) {
   import TraceGraphFunction.mkSynthDefName
 
+  def traceFor(target: Node = Server.default.defaultGroup, outBus: Int = 0,
+               fadeTime: Double = 0.02, addAction: AddAction = addToHead,
+               duration: Double = 0.0, numFrames: Int = 0, numBlocks: Int = 0,
+               bundle: BundleBuilder = new BundleBuilder): Future[List[Data]] = {
+    val s         = target.server
+    val group     = Group(s)
+    val groupMsg  = group.newMsg(target, addAction)
+    bundle.prependSync(groupMsg)
+    val res       = playToBundle(target = group, outBus = outBus, fadeTime = fadeTime, addAction = addToHead,
+                                 bundle = bundle)
+    val fut       = res.traceForToBundle(duration = duration, numFrames = numFrames, numBlocks = numBlocks,
+                                         doneAction = freeGroup, bundle = bundle)
+
+    s ! bundle.result()
+    fut
+  }
+
   def play(target: Node = Server.default.defaultGroup, outBus: Int = 0,
            fadeTime: Double = 0.02, addAction: AddAction = addToHead,
-           toBundleSync : Vec[osc.Packet] = Vector.empty,
-           toBundleAsync: Vec[osc.Packet] = Vector.empty): TraceSynth = {
+           bundle: BundleBuilder = new BundleBuilder): TraceSynth = {
+    val s   = target.server
+    val res = playToBundle(target = target, outBus = outBus, fadeTime = fadeTime, addAction = addAction,
+      bundle = bundle)
+    s ! bundle.result()
+    res
+  }
+
+  def playToBundle(target: Node = Server.default.defaultGroup, outBus: Int = 0,
+                   fadeTime: Double = 0.02, addAction: AddAction = addToHead,
+                   bundle: BundleBuilder = new BundleBuilder): TraceSynth = {
 
     val server      = target.server
     val defName     = mkSynthDefName()
@@ -61,10 +85,11 @@ final class TraceGraphFunction[A](val peer: () => A)(implicit val result: GraphF
     if (busAudio  .numChannels != 0) synArgs ::= Trace.controlNameAr -> busAudio  .index
     val synthMsg    = syn.newMsg(synthDef.name, args = synArgs, target = target, addAction = addAction)
     val defFreeMsg  = synthDef.freeMsg
-    val completion  = Bundle.now(synthMsg +: defFreeMsg +: toBundleSync: _*)
-    val msgRecv     = synthDef.recvMsg(completion)
-    val syncPacket  = if (toBundleAsync.isEmpty) msgRecv else osc.Bundle.now(toBundleAsync :+ msgRecv: _*)
-    server ! syncPacket
+    val msgRecv     = synthDef.recvMsg
+    bundle.appendSync (synthMsg  )
+    bundle.appendSync (defFreeMsg)
+    bundle.appendAsync(msgRecv   )
+
     TraceSynth(peer = syn, controlLink = dataControl, audioLink = dataAudio)
   }
 }
