@@ -49,8 +49,9 @@ Example:
 ```scala
 import de.sciss.synth._
 import ugen._
+import trace._
 import trace.ugen._
-import trace.TraceOps._
+import TraceOps._
 
 Server.run() { s =>
   import s.clientConfig.executionContext
