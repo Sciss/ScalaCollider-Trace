@@ -55,6 +55,7 @@ Server.run() { s =>
   import s.clientConfig.executionContext
   
   val x = tracePlay {
+    RandSeed.ir
     val n = WhiteNoise.ar
     Trace(n, "noise")
     Pan2.ar(n)
@@ -65,5 +66,46 @@ Server.run() { s =>
     traces.foreach(_.print())
   }
 }
-
 ```
+
+Here, `tracePlay` returns an enhanced `Synth`, more precisely `TraceSynth`
+that encapsulates the running runs as well as the debug traces and buses.
+`traceFor` returns a future to the data objects containing the trace.
+The type is `List[Data]`, containing one `Data` instance for control-rate
+and one for audio-rate traces (if any of these rates are used). The
+`Trace` graph element automatically uses the rate of its input argument.
+
+The `print` method on `Data` is a convenience method for creating a
+nicely formatted text, a short cut for `println(mkString)`. The expected
+output from the above example is:
+
+    -------------------------
+    audio-rate data: 8 frames
+    -------------------------
+    noise    :      -0.00180101     -0.266668      0.0157881      0.00469923     -0.880886     -0.242413      0.812972     -0.205941
+
+Here is another example for control rate debugging:
+
+```scala
+val y = tracePlay {
+  val tr    = "trig".tr
+  val count = PulseCount.kr(tr)
+  Trace(count, "count")
+  ()
+}
+
+y.set("trig" -> 1)
+
+y.set("trig" -> 1)
+
+y.traceFor(numBlocks = 2).foreach { traces =>
+  traces.foreach(_.print())
+}
+```
+
+With the expected output:
+
+    ---------------------------
+    control-rate data: 2 frames
+    ---------------------------
+    count    :       2.00000      2.00000

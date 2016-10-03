@@ -32,10 +32,12 @@ object TraceGraphFunction {
     val result = uniqueIDCnt
     result
   }
+
+  private[synth] def mkSynthDefName(): String = s"$$trace_${uniqueID()}"
 }
 // XXX TODO --- ugly, we have to duplicate all of `GraphFunction`
 final class TraceGraphFunction[A](val peer: () => A)(implicit val result: GraphFunction.Result[A]) {
-  import TraceGraphFunction.uniqueID
+  import TraceGraphFunction.mkSynthDefName
 
   def play(target: Node = Server.default.defaultGroup, outBus: Int = 0,
            fadeTime: Double = 0.02, addAction: AddAction = addToHead,
@@ -43,7 +45,7 @@ final class TraceGraphFunction[A](val peer: () => A)(implicit val result: GraphF
            toBundleAsync: Vec[osc.Packet] = Vector.empty): TraceSynth = {
 
     val server      = target.server
-    val defName = s"temp_${uniqueID()}"   // more clear than using hashCode
+    val defName     = mkSynthDefName()
     val sg = SynthGraph {
       result.close(peer(), fadeTime)
     }
@@ -54,9 +56,9 @@ final class TraceGraphFunction[A](val peer: () => A)(implicit val result: GraphF
     val busAudio    = Bus.audio  (server, res.tracesAudioChannels  )
     val dataControl = Link(busControl, res.tracesControl)
     val dataAudio   = Link(busAudio  , res.tracesAudio  )
-    var synArgs     = List[ControlSet]("i_out" -> outBus, "out" -> outBus)
+    var synArgs     = List[ControlSet]("out" -> outBus)
     if (busControl.numChannels != 0) synArgs ::= Trace.controlNameKr -> busControl.index
-    if (busControl.numChannels != 0) synArgs ::= Trace.controlNameAr -> busAudio  .index
+    if (busAudio  .numChannels != 0) synArgs ::= Trace.controlNameAr -> busAudio  .index
     val synthMsg    = syn.newMsg(synthDef.name, args = synArgs, target = target, addAction = addAction)
     val defFreeMsg  = synthDef.freeMsg
     val completion  = Bundle.now(synthMsg +: defFreeMsg +: toBundleSync: _*)

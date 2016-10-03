@@ -20,7 +20,7 @@ import de.sciss.synth
 import de.sciss.synth.UGenSource._
 import de.sciss.synth.ugen.Out
 
-import scala.Predef.{any2stringadd => _}
+import scala.Predef.{any2stringadd => _, _}
 
 object Trace {
   /** Control name used to receive control-bus index for the aggregated control-rate traces. */
@@ -70,7 +70,7 @@ final case class Trace(in: GE, label: String = "debug") extends UGenSource.ZeroO
       val ctlName     = if (aRate == control) controlNameKr else controlNameAr
       val ctl         = ctlName.kr
       val index       = ctl + off
-      Out(control, index, args1)
+      Out(aRate, index, args1)
 
     case _ => // just emit a warning and do nothing
       Console.err.println(s"Warning: `Trace` inside a non-tracing UGen graph builder.")

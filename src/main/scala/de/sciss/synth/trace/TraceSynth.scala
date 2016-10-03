@@ -182,7 +182,7 @@ final case class TraceSynth(peer: Synth, controlLink: Link, audioLink: Link) {
       val rate        = link.rate
       val busCtlName  = Trace.controlName(rate)
       val bufCtlName  = "$trace_buf"
-      val synthDef    = SynthDef(s"$$trace_lnk_${link.rate.methodName}") {
+      val synthDef    = SynthDef(TraceGraphFunction.mkSynthDefName()) {
         import Ops.stringToControl
         import synth.ugen._
         val busIdx      = busCtlName.ir
@@ -206,7 +206,9 @@ final case class TraceSynth(peer: Synth, controlLink: Link, audioLink: Link) {
         import Ops._
         val fut = buf.getData()
         val futI = fut.map { flat =>
-          val xs = flat.grouped(numChannels).toVector
+          // val xs = flat.grouped(bufSize).toVector.transpose
+          // is this faster than intermediate vectors and transpose?
+          val xs = Vector.tabulate(numChannels)(ch => Vector.tabulate(bufSize)(i => flat(i * numChannels + ch)))
           val traceMap: Map[String, Vec[Vec[Float]]] = link.traces.map { t =>
             val sub = xs.slice(t.index, t.index + t.numChannels)
             t.label -> sub
