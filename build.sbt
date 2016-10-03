@@ -7,7 +7,7 @@ licenses           := Seq("lgpl" -> url("https://www.gnu.org/licenses/lgpl-2.1.t
 scalaVersion       := "2.11.8"
 crossScalaVersions := Seq("2.11.8", "2.10.6")
 
-scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature", "-encoding", "utf8", "-Xfuture")
+scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature", "-encoding", "utf8", "-Xfuture", "-Xlint")
 
 lazy val scalaColliderVersion = "1.21.0"
 lazy val ugensVersion         = "1.16.0"
@@ -16,6 +16,15 @@ libraryDependencies ++= Seq(
   "de.sciss" %% "scalacollider"           % scalaColliderVersion,
   "de.sciss" %  "scalacolliderugens-spec" % ugensVersion
 )
+
+initialCommands in console :=
+  """import de.sciss.synth._
+    |import Ops._
+    |import ugen._
+    |import trace.ugen._
+    |import trace.TraceOps._
+    |def s = Server.default
+    |""".stripMargin
 
 // ---- publishing ----
 

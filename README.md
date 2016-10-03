@@ -23,3 +23,47 @@ To print the test output, `sbt test:run`.
 ## contributing
 
 Please see the file [CONTRIBUTING.md](CONTRIBUTING.md)
+
+## documentation
+
+We introduce a new graph element `Trace` that explicitly enables the tracing
+of an input signal, associated with a label:
+
+```scala
+Trace(in, label = "foo")
+```
+    
+For this to work, we require a specific UGen graph builder that extends
+`TracingUGenGraphBuilder`. All `Trace` instances participating are
+receiving offsets to a debugging bus (or two debugging buses, one for
+control rate signals and one for audio rate signals). The builder's
+companion object has a specific build function that not only expands
+a UGen graph but also returns a debugging object that encapsulates the
+knowledge of the tracing instances. This object can then be used to
+issue recordings of the values. A separate GUI display component is
+available for then browsing the recorded data.
+
+Example:
+
+```scala
+import de.sciss.synth._
+import ugen._
+import trace.ugen._
+import trace.TraceOps._
+
+Server.run() { s =>
+  import s.clientConfig.executionContext
+  
+  val x = tracePlay {
+    val n = WhiteNoise.ar
+    Trace(n, "noise")
+    Pan2.ar(n)
+  }
+  
+  val fut = x.traceFor(numFrames = 8)
+  fut.foreach { traces =>
+    traces.foreach(_.print())
+  }
+}
+
+```
