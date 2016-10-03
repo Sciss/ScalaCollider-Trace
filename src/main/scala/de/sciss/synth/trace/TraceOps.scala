@@ -16,7 +16,6 @@ package de.sciss.synth
 package trace
 
 import de.sciss.synth.Ops.NodeOps
-import de.sciss.synth.trace.TraceSynth.BundleBuilder
 
 import scala.language.implicitConversions
 

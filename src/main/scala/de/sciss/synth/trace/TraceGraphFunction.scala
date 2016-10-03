@@ -15,7 +15,7 @@
 package de.sciss.synth
 package trace
 
-import de.sciss.synth.trace.TraceSynth.{BundleBuilder, Data, Link}
+import de.sciss.synth.trace.TraceSynth.{Data, Link}
 import de.sciss.synth.trace.ugen.Trace
 
 import scala.concurrent.Future
@@ -44,7 +44,7 @@ final class TraceGraphFunction[A](val peer: () => A)(implicit val result: GraphF
     val s         = target.server
     val group     = Group(s)
     val groupMsg  = group.newMsg(target, addAction)
-    bundle.prependSync(groupMsg)
+    bundle.addSync(groupMsg)
     val res       = playToBundle(target = group, outBus = outBus, fadeTime = fadeTime, addAction = addToHead,
                                  bundle = bundle)
     val fut       = res.traceForToBundle(duration = duration, numFrames = numFrames, numBlocks = numBlocks,
@@ -86,9 +86,9 @@ final class TraceGraphFunction[A](val peer: () => A)(implicit val result: GraphF
     val synthMsg    = syn.newMsg(synthDef.name, args = synArgs, target = target, addAction = addAction)
     val defFreeMsg  = synthDef.freeMsg
     val msgRecv     = synthDef.recvMsg
-    bundle.appendSync (synthMsg  )
-    bundle.appendSync (defFreeMsg)
-    bundle.appendAsync(msgRecv   )
+    bundle.addSync (synthMsg  )
+    bundle.addSync (defFreeMsg)
+    bundle.addAsync(msgRecv   )
 
     TraceSynth(peer = syn, controlLink = dataControl, audioLink = dataAudio)
   }

@@ -1,5 +1,5 @@
 name               := "ScalaCollider-Trace"
-version            := "0.1.0-SNAPSHOT"
+version            := "0.1.0"
 organization       := "at.iem"
 description        := "A library for debugging ScalaCollider UGen graphs by tracing their values"
 homepage           := Some(url(s"https://github.com/iem-projects/${name.value}"))
@@ -22,6 +22,7 @@ initialCommands in console :=
     |import Ops._
     |import ugen._
     |import trace.ugen._
+    |import trace.BundleBuilder
     |import trace.TraceOps._
     |def s = Server.default
     |""".stripMargin

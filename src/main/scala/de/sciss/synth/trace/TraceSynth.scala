@@ -17,11 +17,10 @@ package trace
 
 import java.util.Locale
 
-import de.sciss.synth.message.HasCompletion
-import de.sciss.synth.trace.TraceSynth.{BundleBuilder, Data, Link}
+import de.sciss.synth
+import de.sciss.synth.trace.TraceSynth.{Data, Link}
 import de.sciss.synth.trace.ugen.Trace
 import de.sciss.synth.trace.{TracingUGenGraphBuilder => UGB}
-import de.sciss.{osc, synth}
 
 import scala.collection.breakOut
 import scala.collection.immutable.{IndexedSeq => Vec}
@@ -40,34 +39,6 @@ object TraceSynth {
 
     def isEmpty : Boolean = numChannels == 0
     def nonEmpty: Boolean = !isEmpty
-  }
-
-  final class BundleBuilder {
-    def prependSync (p: osc.Packet)                   : Unit = sync = p +: sync
-    def appendSync  (p: osc.Packet)                   : Unit = sync = sync :+ p
-
-    def prependAsync(p: osc.Packet with HasCompletion): Unit = async = p +: async
-    def appendAsync (p: osc.Packet with HasCompletion): Unit = async = async :+ p
-
-    var sync  = Vec.empty[osc.Packet]
-    var async = Vec.empty[osc.Packet with HasCompletion]
-
-    def result(): osc.Packet = {
-      val syncP = if (sync.size == 1) sync.head
-      else osc.Bundle.now(sync: _*)
-
-      if (async.isEmpty) syncP else {
-        val init :+ last = async
-        val syncU = last.completion.fold(syncP) { comp =>
-          syncP match {
-            case b: osc.Bundle => osc.Bundle.now(comp +: b.packets: _*)
-            case _ => osc.Bundle.now(comp, syncP)
-          }
-        }
-        val lastU = last.updateCompletion(Some(syncU))
-        if (init.isEmpty) lastU else osc.Bundle.now(init :+ lastU: _*)
-      }
-    }
   }
 
   final case class Data(bus: Bus, numFrames: Int, traceMap: Map[String, Vec[Vec[Float]]]) {
@@ -232,12 +203,12 @@ final case class TraceSynth(peer: Synth, controlLink: Link, audioLink: Link) {
       val syn       = Synth (s)
       val synArgs   = List[ControlSet](busCtlName -> link.bus.index, bufCtlName -> buf.id, doneCtlName -> doneAction.id)
       val newMsg    = syn.newMsg(synthDef.name, args = synArgs, target = peer, addAction = addAfter)
-      bundle.appendSync(newMsg)
-      bundle.appendSync(synthDef.freeMsg)
+      bundle.addSync(newMsg)
+      bundle.addSync(synthDef.freeMsg)
       val recvMsg   = synthDef.recvMsg // (completion = osc.Bundle.now(newMsg, synthDef.freeMsg))
       val allocMsg  = buf.allocMsg(numFrames = bufSize, numChannels = numChannels) // , completion = recvMsg
-      bundle.appendAsync(allocMsg)
-      bundle.appendAsync(recvMsg)
+      bundle.addAsync(allocMsg)
+      bundle.addAsync(recvMsg)
       val p         = Promise[Data]()
 
       futures ::= p.future

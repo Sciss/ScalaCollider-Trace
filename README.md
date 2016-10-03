@@ -84,6 +84,8 @@ output from the above example is:
     -------------------------
     noise    :      -0.00180101     -0.266668      0.0157881      0.00469923     -0.880886     -0.242413      0.812972     -0.205941
 
+### Synchronous trace start
+
 In order to start playing and tracing synchronously, one can use
 `traceGraph` to build the enhanced graph-function (`TraceGraphFunction`),
 and then use `traceFor` in a similar way:
@@ -110,17 +112,18 @@ recorded. The correct output here would be:
     -------------------------
     noise    :      -0.0793402      0.608976     -0.491325      0.387161     -0.563370      0.307421      0.290958      0.928846
 
-The `traceFor` function also accepts a `bundle` argument of type
-`BundleBuilder`. This can be used to attach further synchronized
-debugging actions to the trace.
 
-Here is another example for control rate debugging:
+### Control rate traces
+
+Here is an example for control rate debugging:
 
 ```scala
 val y = tracePlay {
   val tr    = "trig".tr
   val count = PulseCount.kr(tr)
   Trace(count, "count")
+  val sweep = Sweep.kr(tr, 1)
+  Trace(sweep, "sweep")
 }
 
 y.set("trig" -> 1)
@@ -132,9 +135,61 @@ y.traceFor(numBlocks = 2).foreach { traces =>
 }
 ```
 
-With the expected output:
+With an example output:
 
     ---------------------------
     control-rate data: 2 frames
     ---------------------------
-    count    :       2.00000      2.00000
+    count    :       2.00000        2.00000  
+    sweep    :       3.25224        3.25370  
+
+### Auxiliary infra-structure with bundle-builder
+
+If you need to feed external synchronized input to the synth,
+one way to do so is using the `bundle` argument of type `BundleBuilder`. 
+It allows to add asynchronous preparation messages as well as
+the add synchronous messages (such as `synth.newMsg` or `node.setMsg`)
+to the start or to the end of the overall bundle that is generated
+by the tracing commands.
+
+The following more intricate example shows how a timed
+control signal can be fed into the synth that is being traced,
+using an auxiliary group, an auxiliary control generator synth,
+and a bus mapping:
+
+
+```scala
+val x = traceGraph {
+  val in  = "in".kr
+  val sig = Integrator.kr(in)
+  Trace(sig, "integ")
+}
+
+val c = Bus.control(s)
+val g = Group.head(s)
+
+val genDef = SynthDef("gen") {
+  val sig = Phasor.kr(lo = 0, hi = 5)
+  Out.kr(c.index, sig)
+}
+
+val gen = Synth(s)
+
+val b = new BundleBuilder
+b.addAsync(genDef.recvMsg)
+b.addSyncToStart(gen.newMsg(genDef.name, target = g, addAction = addToHead))
+b.addSyncToEnd(g.mapMsg("in" -> c.index))
+
+val fut = x.traceFor(target = g, addAction = addToTail, numBlocks = 5, bundle = b)
+fut.foreach { traces =>
+  traces.foreach(_.print())
+  c.free()
+}
+```
+
+The output from this:
+
+    ---------------------------
+    control-rate data: 5 frames
+    ---------------------------
+    integ    :     0.00000      1.00000      3.00000      6.00000     10.00000  
