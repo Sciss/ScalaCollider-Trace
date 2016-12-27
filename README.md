@@ -14,7 +14,7 @@ The following artifact is available from Maven Central:
 
     "at.iem" %% "scalacollider-trace" % v
 
-The current stable version `v` is `"0.1.0"`.
+The current stable version `v` is `"0.2.0"`.
 
 ## building
 
