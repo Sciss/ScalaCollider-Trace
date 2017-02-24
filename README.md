@@ -5,7 +5,7 @@
 
 A library for [ScalaCollider](https://github.com/Sciss/ScalaCollider) to aids in debugging 
 synth graphs by providing abstractions that monitor the values of UGens graph.
-This project is (C)opyright 2016 by the Institute of Electronic Music and Acoustics (IEM), Graz. 
+This project is (C)opyright 2016&ndash;2017 by the Institute of Electronic Music and Acoustics (IEM), Graz. 
 Written by Hanns Holger Rutz. This software is published under the GNU Lesser General Public License v2.1+.
 
 ## linking
@@ -14,11 +14,11 @@ The following artifact is available from Maven Central:
 
     "at.iem" %% "scalacollider-trace" % v
 
-The current stable version `v` is `"0.2.0"`.
+The current stable version `v` is `"0.2.1"`.
 
 ## building
 
-This project builds with sbt 0.13 and Scala 2.11, 2.10. To compile `sbt test:compile`.
+This project builds with sbt 0.13 and Scala 2.12, 2.11, 2.10. To compile `sbt test:compile`.
 To print the test output, `sbt test:run`.
 
 ## contributing

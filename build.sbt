@@ -1,16 +1,16 @@
 name               := "ScalaCollider-Trace"
-version            := "0.2.0"
+version            := "0.2.1"
 organization       := "at.iem"
 description        := "A library for debugging ScalaCollider UGen graphs by tracing their values"
 homepage           := Some(url(s"https://github.com/iem-projects/${name.value}"))
 licenses           := Seq("lgpl" -> url("https://www.gnu.org/licenses/lgpl-2.1.txt"))
-scalaVersion       := "2.11.8"
-crossScalaVersions := Seq("2.11.8", "2.10.6")
+scalaVersion       := "2.12.1"
+crossScalaVersions := Seq("2.12.1", "2.11.8", "2.10.6")
 
 scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature", "-encoding", "utf8", "-Xfuture", "-Xlint")
 
-lazy val scalaColliderVersion = "1.22.2"
-lazy val ugensVersion         = "1.16.3"
+lazy val scalaColliderVersion = "1.22.3"
+lazy val ugensVersion         = "1.16.4"
 
 libraryDependencies ++= Seq(
   "de.sciss" %% "scalacollider"           % scalaColliderVersion,
