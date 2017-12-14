@@ -14,11 +14,11 @@ The following artifact is available from Maven Central:
 
     "at.iem" %% "scalacollider-trace" % v
 
-The current stable version `v` is `"0.2.1"`.
+The current stable version `v` is `"0.3.0"`.
 
 ## building
 
-This project builds with sbt 0.13 and Scala 2.12, 2.11, 2.10. To compile `sbt test:compile`.
+This project builds with sbt and Scala 2.12, 2.11. To compile `sbt test:compile`.
 To print the test output, `sbt test:run`.
 
 ## contributing
