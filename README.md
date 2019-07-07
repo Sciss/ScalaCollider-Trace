@@ -1,12 +1,12 @@
 # ScalaCollider-Trace
 
-[![Build Status](https://travis-ci.org/iem-projects/ScalaCollider-Trace.svg?branch=master)](https://travis-ci.org/iem-projects/ScalaCollider-Trace)
-[![Maven Central](https://maven-badges.herokuapp.com/maven-central/at.iem/scalacollider-trace_2.11/badge.svg)](https://maven-badges.herokuapp.com/maven-central/at.iem/scalacollider-trace_2.11)
+[![Build Status](https://travis-ci.org/Sciss/ScalaCollider-Trace.svg?branch=master)](https://travis-ci.org/Sciss/ScalaCollider-Trace)
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/de.sciss/scalacollider-trace_2.12/badge.svg)](https://maven-badges.herokuapp.com/maven-central/de.sciss/scalacollider-trace_2.12)
 
 A library for [ScalaCollider](https://github.com/Sciss/ScalaCollider) to aids in debugging 
 synth graphs by providing abstractions that monitor the values of UGens graph.
-This project is (C)opyright 2016&ndash;2017 by the Institute of Electronic Music and Acoustics (IEM), Graz. 
-Written by Hanns Holger Rutz. This software is published under the GNU Lesser General Public License v2.1+.
+This project is (C)opyright 2016&ndash;2019 by Hanns Holger Rutz.
+This software is published under the GNU Lesser General Public License v2.1+.
 
 ## linking
 
@@ -14,11 +14,11 @@ The following artifact is available from Maven Central:
 
     "at.iem" %% "scalacollider-trace" % v
 
-The current stable version `v` is `"0.3.0"`.
+The current stable version `v` is `"0.4.0"`.
 
 ## building
 
-This project builds with sbt and Scala 2.12, 2.11. To compile `sbt test:compile`.
+This project builds with sbt and Scala 2.13, 2.12, 2.11. To compile `sbt test:compile`.
 To print the test output, `sbt test:run`.
 
 ## contributing

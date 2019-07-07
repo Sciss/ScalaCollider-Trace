@@ -2,8 +2,7 @@
  *  Trace.scala
  *  (ScalaCollider-Trace)
  *
- *  Copyright (c) 2016 Institute of Electronic Music and Acoustics, Graz.
- *  Written by Hanns Holger Rutz.
+ *  Copyright (c) 2016-2019 Hanns Holger Rutz. All rights reserved.
  *
  *	This software is published under the GNU Lesser General Public License v2.1+
  *
@@ -20,7 +19,7 @@ import de.sciss.synth
 import de.sciss.synth.UGenSource._
 import de.sciss.synth.ugen.Out
 
-import scala.Predef.{any2stringadd => _, _}
+import scala.Predef.{any2stringadd => _}
 
 object Trace {
   /** Control name used to receive control-bus index for the aggregated control-rate traces. */

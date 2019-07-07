@@ -2,8 +2,7 @@
  *  TraceSynth.scala
  *  (ScalaCollider-Trace)
  *
- *  Copyright (c) 2016 Institute of Electronic Music and Acoustics, Graz.
- *  Written by Hanns Holger Rutz.
+ *  Copyright (c) 2016-2019 Hanns Holger Rutz. All rights reserved.
  *
  *	This software is published under the GNU Lesser General Public License v2.1+
  *
@@ -22,7 +21,6 @@ import de.sciss.synth.trace.TraceSynth.{Data, Link}
 import de.sciss.synth.trace.ugen.Trace
 import de.sciss.synth.trace.{TracingUGenGraphBuilder => UGB}
 
-import scala.collection.breakOut
 import scala.collection.immutable.{IndexedSeq => Vec}
 import scala.concurrent.{Future, Promise}
 import scala.language.implicitConversions
@@ -98,7 +96,7 @@ object TraceSynth {
               sb.append(s)
             }
             sb.append(": ")
-            vec.iterator.zipWithIndex.foreach { case (x, i) =>
+            vec.iterator.zipWithIndex.foreach { case (x, _ /* i */) =>
               val s       = java.lang.String.format(Locale.US, "%g", x.asInstanceOf[AnyRef])
               val dec0    = s.indexOf('.')
               val dec     = if (dec0 >= 0) dec0 else s.length
@@ -220,10 +218,10 @@ final case class TraceSynth(peer: Synth, controlLink: Link, audioLink: Link) {
           // val xs = flat.grouped(bufSize).toVector.transpose
           // is this faster than intermediate vectors and transpose?
           val xs = Vector.tabulate(numChannels)(ch => Vector.tabulate(bufSize)(i => flat(i * numChannels + ch)))
-          val traceMap: Map[String, Vec[Vec[Float]]] = link.traces.map { t =>
+          val traceMap: Map[String, Vec[Vec[Float]]] = link.traces.iterator.map { t =>
             val sub = xs.slice(t.index, t.index + t.numChannels)
             t.label -> sub
-          } (breakOut)
+          } .toMap
 
           Data(bus = link.bus, numFrames = bufSize, traceMap = traceMap)
         }
